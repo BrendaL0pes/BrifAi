@@ -1,4 +1,4 @@
-# Briefy
+# BrifAI - Intelligent Briefing Agent
 # Projeto Prático #01: Sistema de Briefings Personalizados
 
 ## Descrição do Projeto
