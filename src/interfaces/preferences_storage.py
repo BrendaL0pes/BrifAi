@@ -1,23 +1,36 @@
-"""Interface for user preferences storage."""
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Optional
 from src.core.models import UserPreferences
-
-
+ 
 class IPreferencesStorage(ABC):
-    """Abstract base class for persisting user preferences."""
-
     @abstractmethod
-    def save_user(self, preferences: UserPreferences) -> bool:
-        """Saves a user's preferences to the storage."""
-        pass
-
+    def save_user(self, preferences: UserPreferences) -> bool: pass
     @abstractmethod
-    def get_user(self, discord_channel_id: str) -> Optional[UserPreferences]:
-        """Retrieves a user's preferences by their Discord channel ID."""
-        pass
-
+    def get_user(self, discord_channel_id: str) -> Optional[UserPreferences]: pass
     @abstractmethod
-    def get_all_users(self) -> List[UserPreferences]:
-        """Retrieves all registered users (useful for the daily scheduler)."""
-        pass
+    def get_all_users(self) -> list[UserPreferences]: pass
+ 
+ 
+# news_fetcher.py
+from src.core.models import NewsArticle
+ 
+class INewsFetcher(ABC):
+    @abstractmethod
+    async def fetch_recent_news(
+        self, topic: str, keywords: list[str], max_results: int
+    ) -> list[NewsArticle]: pass
+ 
+ 
+# email_sender.py
+class IEmailSender(ABC):
+    @abstractmethod
+    def send_briefing(self, to_email: str, markdown_content: str) -> bool: pass
+ 
+ 
+# discord_notifier.py
+class IDiscordNotifier(ABC):
+    @abstractmethod
+    async def send_message(
+        self, channel_id: str, markdown_content: str
+    ) -> bool: pass
+

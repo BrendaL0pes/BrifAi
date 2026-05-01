@@ -54,7 +54,7 @@ uv sync
 To start the system (Onboarding and Scheduler):
 
 ```powershell
-uv run python src/main.py
+uv run python -m src.main
 ```
 
 🤖 Development Protocol (For the Team)
