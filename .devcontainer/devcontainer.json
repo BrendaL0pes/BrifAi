@@ -1,0 +1,43 @@
+{
+  "name": "Briefy Dev Environment",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+
+  // Extensões VS Code instaladas automaticamente no container
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",          // suporte Python
+        "ms-python.vscode-pylance",  // intellisense e type checking
+        "charliermarsh.ruff",        // linter/formatter (substitui black + flake8)
+        "ms-python.debugpy",         // debugger
+        "usernamehw.errorlens",      // mostra erros inline no editor
+        "tamasfe.even-better-toml",  // syntax highlight do pyproject.toml
+        "mhutchie.git-graph"         // visualização de branches/commits
+      ],
+      "settings": {
+        // aponta pro .venv criado pelo uv sync
+        "python.defaultInterpreterPath": "/workspaces/brifai/.venv/bin/python",
+
+        // formata e organiza imports ao salvar
+        "editor.formatOnSave": true,
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.formatOnSave": true
+        },
+        "ruff.organizeImports": true,
+
+        // mostra type hints inline (opcional, mas ajuda muito)
+        "python.analysis.inlayHints.functionReturnTypes": true,
+        "python.analysis.inlayHints.variableTypes": true
+      }
+    }
+  },
+
+  // Roda após o container ser criado: instala dependências via uv
+  "postCreateCommand": "uv sync",
+
+  // Usuário padrão do container (não root)
+  "remoteUser": "vscode"
+}

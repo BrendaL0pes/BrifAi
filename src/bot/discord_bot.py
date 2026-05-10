@@ -2,7 +2,10 @@ from dataclasses import dataclass, field
 from typing import Dict
 
 import discord
+from typing import Optional
 
+from agno.agent import Agent
+from agno.models.groq import Groq
 from src.core.models import UserPreferences
 from src.delivery.scheduler import BriefingScheduler
 from src.interfaces.preferences_storage import IPreferencesStorage
