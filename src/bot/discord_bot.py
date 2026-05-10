@@ -4,6 +4,7 @@ from typing import Dict
 import discord
 
 from src.core.models import UserPreferences
+from src.delivery.scheduler import BriefingScheduler
 from src.interfaces.preferences_storage import IPreferencesStorage
 
 
@@ -25,9 +26,15 @@ class DiscordBotManager:
         "channel": "What Discord channel ID should receive briefings?",
     }
 
-    def __init__(self, client: discord.Client, storage: IPreferencesStorage) -> None:
+    def __init__(
+        self,
+        client: discord.Client,
+        storage: IPreferencesStorage,
+        scheduler: BriefingScheduler,
+    ) -> None:
         self._client = client
         self._storage = storage
+        self._scheduler = scheduler
         self._sessions: Dict[int, ConversationState] = {}
 
     def register_events(self) -> None:
@@ -43,6 +50,10 @@ class DiscordBotManager:
 
         if content.lower() == "!start":
             await self._start_session(message, user_id)
+            return
+
+        if content.lower() == "!test":
+            await self._run_test(message)
             return
 
         if user_id in self._sessions:
@@ -66,6 +77,14 @@ class DiscordBotManager:
             return
 
         await self._complete(message, user_id)
+
+    async def _run_test(self, message: discord.Message) -> None:
+        await message.channel.send("Running manual briefing test...")
+        try:
+            await self._scheduler.run_daily_job()
+            await message.channel.send("Manual briefing test finished.")
+        except Exception as exception:
+            await message.channel.send(f"Manual briefing test failed: {exception}")
 
     async def _process_answer(
         self,
