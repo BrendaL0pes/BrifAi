@@ -1,88 +1,78 @@
-"""Unit tests for email sender implementation."""
-import unittest
+"""Unit tests for SmtpEmailService.
+
+These tests verify the delivery-layer SMTP implementation used by the current application.
+They exercise successful send, early validation failure, and SMTP error handling.
+"""
 from unittest.mock import MagicMock, patch
 
-from src.services.email_sender import SMTPEmailSender
+from src.delivery.smtp_email_service import SmtpEmailService
 
 
-class TestSMTPEmailSender(unittest.TestCase):
-    """Tests for SMTPEmailSender class."""
+class TestSmtpEmailService:
+    """Tests for SmtpEmailService."""
 
-    def setUp(self) -> None:
-        """Initialize test fixtures."""
-        self.sender = SMTPEmailSender(
-            smtp_server="smtp.gmail.com",
-            smtp_port=587,
-            username="test@gmail.com",
-            password="test_password",
-            sender_email="test@gmail.com",
-        )
-
-    @patch("src.services.email_sender.smtplib.SMTP")
+    @patch("src.delivery.smtp_email_service.smtplib.SMTP")
     def test_send_briefing_success(self, mock_smtp_class: MagicMock) -> None:
-        """Test successful email sending."""
+        """Ensure email delivery succeeds with valid credentials and content."""
         mock_smtp = MagicMock()
         mock_smtp_class.return_value.__enter__.return_value = mock_smtp
 
-        result = self.sender.send_briefing(
-            "recipient@example.com", "# Test Briefing\n\nThis is a test."
-        )
+        service = SmtpEmailService()
+        service._user = "test@gmail.com"
+        service._password = "test_password"
 
-        self.assertTrue(result)
+        result = service.send_briefing("recipient@example.com", "Hello from BrifAI.")
+
+        assert result is True
         mock_smtp.starttls.assert_called_once()
         mock_smtp.login.assert_called_once_with("test@gmail.com", "test_password")
+        mock_smtp.send_message.assert_called_once()
 
-    @patch("src.services.email_sender.smtplib.SMTP")
-    def test_send_briefing_connection_error(
+    @patch("src.delivery.smtp_email_service.smtplib.SMTP")
+    def test_send_briefing_fails_without_credentials(
         self, mock_smtp_class: MagicMock
     ) -> None:
-        """Test handling of connection errors."""
-        mock_smtp_class.side_effect = Exception("Connection refused")
+        service = SmtpEmailService()
+        service._user = ""
+        service._password = ""
 
-        result = self.sender.send_briefing("recipient@example.com", "Content")
+        result = service.send_briefing("recipient@example.com", "content")
 
-        self.assertFalse(result)
+        assert result is False
+        mock_smtp_class.assert_not_called()
 
-    @patch("src.services.email_sender.smtplib.SMTP")
-    def test_send_briefing_auth_error(self, mock_smtp_class: MagicMock) -> None:
-        """Test handling of authentication errors."""
-        mock_smtp = MagicMock()
-        mock_smtp_class.return_value.__enter__.return_value = mock_smtp
-        mock_smtp.login.side_effect = Exception("535 Authentication failed")
+    @patch("src.delivery.smtp_email_service.smtplib.SMTP")
+    def test_send_briefing_handles_smtp_exception(
+        self, mock_smtp_class: MagicMock
+    ) -> None:
+        """If SMTP fails, send_briefing should return False."""
+        mock_smtp_class.side_effect = Exception("SMTP failure")
 
-        result = self.sender.send_briefing("recipient@example.com", "Content")
+        service = SmtpEmailService()
+        service._user = "test@gmail.com"
+        service._password = "test_password"
 
-        self.assertFalse(result)
+        result = service.send_briefing("recipient@example.com", "content")
 
-    def test_convert_markdown_to_html(self) -> None:
-        """Test Markdown to HTML conversion."""
-        markdown = "# Title\n\n**Bold text**\n\n- Item 1\n- Item 2"
-        html = self.sender._convert_markdown_to_html(markdown)
+        assert result is False
 
-        self.assertIn("<h1>", html)
-        self.assertIn("<strong>", html)
-        self.assertIn("<li>", html)
-        self.assertIn("<html>", html)
+    def test_send_briefing_returns_false_for_missing_recipient_or_content(self) -> None:
+        """Validate early-return checks for empty recipient or empty content."""
+        service = SmtpEmailService()
+        service._user = "sender@example.com"
+        service._password = "password"
 
-    def test_build_email_structure(self) -> None:
-        """Test email message structure."""
-        message = self.sender._build_email(
-            "recipient@example.com", "<p>Test content</p>"
-        )
+        assert service.send_briefing("", "Content") is False
+        assert service.send_briefing("recipient@example.com", "") is False
 
-        self.assertEqual(message["From"], "test@gmail.com")
-        self.assertEqual(message["To"], "recipient@example.com")
-        self.assertEqual(message["Subject"], "Your BrifAI Daily Briefing")
+    def test_build_mime_message(self) -> None:
+        service = SmtpEmailService()
+        service._user = "sender@example.com"
+        service._password = "password"
 
-    @patch("src.services.email_sender.smtplib.SMTP")
-    def test_send_briefing_timeout(self, mock_smtp_class: MagicMock) -> None:
-        """Test handling of SMTP timeout."""
-        mock_smtp_class.side_effect = TimeoutError("Connection timeout")
+        message = service._build_mime("recipient@example.com", "Hello")
 
-        result = self.sender.send_briefing("recipient@example.com", "Content")
-
-        self.assertFalse(result)
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert message["From"] == "sender@example.com"
+        assert message["To"] == "recipient@example.com"
+        assert message["Subject"] == "Your Daily Briefing"
+        assert message.get_payload()[0].get_content_type() == "text/plain"

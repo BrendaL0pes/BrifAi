@@ -8,7 +8,7 @@ class INewsFetcher(ABC):
     """Abstract base class for fetching news from external sources."""
 
     @abstractmethod
-    def fetch_recent_news(
+    async def fetch_recent_news(
         self, topic: str, keywords: List[str], max_results: int
     ) -> List[NewsArticle]:
         """

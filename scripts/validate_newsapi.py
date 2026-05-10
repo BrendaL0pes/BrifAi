@@ -1,15 +1,16 @@
 """Manual validation script for NewsAPI integration with real API calls."""
+import asyncio
 import os
 import sys
 from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.services.newsapi_fetcher import NewsAPIFetcher
+from src.delivery.news_api_fetcher import NewsApiFetcher
 
 
 def main() -> None:
-    """Validate NewsAPI fetcher with real API calls."""
+    """Validate the current NewsAPI delivery implementation with real API calls."""
     load_dotenv()
     api_key = os.getenv("NEWS_API_KEY")
 
@@ -18,12 +19,14 @@ def main() -> None:
         print("Please add NEWS_API_KEY=<your_key> to .env")
         sys.exit(1)
 
-    print("🔄 Initializing NewsAPIFetcher...")
-    fetcher = NewsAPIFetcher(api_key=api_key)
+    print("🔄 Initializing NewsApiFetcher...")
+    fetcher = NewsApiFetcher(api_key=api_key)
 
     print("📡 Fetching news about 'technology' with keywords ['AI', 'machine learning']...")
-    articles = fetcher.fetch_recent_news(
-        topic="technology", keywords=["AI", "machine learning"], max_results=5
+    articles = asyncio.run(
+        fetcher.fetch_recent_news(
+            topic="technology", keywords=["AI", "machine learning"], max_results=5
+        )
     )
 
     if not articles:

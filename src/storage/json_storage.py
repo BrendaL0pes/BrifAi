@@ -24,7 +24,12 @@ class JsonPreferencesStorage(IPreferencesStorage):
     def _read_data(self) -> Dict[str, dict]:
         """Reads the raw dictionary from the JSON file."""
         content = self.file_path.read_text(encoding="utf-8")
-        return json.loads(content) if content else {}
+        if not content:
+            return {}
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            return {}
 
     def _write_data(self, data: Dict[str, dict]) -> None:
         """Writes the dictionary back to the JSON file."""

@@ -1,15 +1,25 @@
 [project]
-name = "briefy"
+name = "brifai"
 version = "0.1.0"
-description = "Add your description here"
+description = "Automated news briefing system with AI agents"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "agno>=2.5.17",
-    "apscheduler>=3.11.2",
-    "discord-py>=2.7.1",
+    "agno>=2.6.1",
+    "groq>=1.2.0",
     "python-dotenv>=1.2.2",
-    "newsapi-python>=0.2.7",
-    "pytest>=7.4.0",
-    "markdown2>=2.4.9",
+    "discord.py>=2.3",
+    "httpx>=0.27",
+    "apscheduler>=3.10",
+    "nest-asyncio>=1.6",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

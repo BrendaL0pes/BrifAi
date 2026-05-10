@@ -1,27 +1,18 @@
-import asyncio
-from typing import Optional
-
 import discord
 from src.interfaces.discord_notifier import IDiscordNotifier
 
 
 class DiscordDeliveryService(IDiscordNotifier):
-    def __init__(self, client: discord.Client, default_channel_id: Optional[str] = None):
-        self.client = client
-        self.default_channel_id = default_channel_id
+    """Delivers briefings to Discord channels using the injected client."""
 
-    def send_message(self, channel_id: str, markdown_content: str) -> bool:
-        channel_id = channel_id or self.default_channel_id
-        if not channel_id:
-            return False
+    def __init__(self, client: discord.Client) -> None:
+        self._client = client
 
-        channel = self.client.get_channel(int(channel_id))
-        if channel is None:
-            return False
-
-        loop = getattr(self.client, "loop", None)
-        if loop and loop.is_running():
-            asyncio.create_task(channel.send(markdown_content))
+    async def send_message(self, channel_id: str, markdown_content: str) -> bool:
+        """Fetches the Discord channel and sends the briefing message."""
+        try:
+            channel = await self._client.fetch_channel(int(channel_id))
+            await channel.send(markdown_content)
             return True
-
-        return False
+        except Exception:
+            return False

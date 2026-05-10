@@ -1,107 +1,173 @@
-"""Unit tests for NewsAPI fetcher implementation."""
-import unittest
-from unittest.mock import MagicMock, patch
+"""Unit tests for NewsApiFetcher."""
+from unittest.mock import MagicMock
 
+import httpx
+import pytest
 from src.core.models import NewsArticle
-from src.services.newsapi_fetcher import NewsAPIFetcher
+from src.delivery.news_api_fetcher import NewsApiFetcher
 
 
-class TestNewsAPIFetcher(unittest.TestCase):
-    """Tests for NewsAPIFetcher class."""
+class DummyResponse:
+    def __init__(self, data):
+        self._data = data
 
-    def setUp(self) -> None:
-        """Initialize test fixtures."""
-        self.fetcher = NewsAPIFetcher(api_key="test_key")
+    def raise_for_status(self):
+        return None
 
-    @patch("src.services.newsapi_fetcher.NewsApiClient")
-    def test_fetch_recent_news_success(self, mock_client_class: MagicMock) -> None:
-        """Test successful news fetching."""
-        mock_client = MagicMock()
-        mock_client_class.return_value = mock_client
-        mock_client.get_everything.return_value = {
+    def json(self):
+        return self._data
+
+
+class DummyAsyncClient:
+    def __init__(self, response):
+        self._response = response
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+    async def get(self, *args, **kwargs):
+        return self._response
+
+
+class ErrorAsyncClient:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+    async def get(self, *args, **kwargs):
+        raise httpx.HTTPError("Request failed")
+
+
+class InvalidJsonResponse:
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        raise ValueError("Invalid JSON")
+
+
+class TestNewsApiFetcher:
+    @pytest.mark.asyncio
+    async def test_fetch_recent_news_success(self, monkeypatch) -> None:
+        response_data = {
             "articles": [
                 {
-                    "title": "Test Article 1",
-                    "url": "https://example.com/1",
-                    "description": "Summary 1",
-                    "source": {"name": "Test Source"},
+                    "title": "Test Article",
+                    "url": "https://example.com/test",
+                    "description": "Summary",
+                    "source": {"name": "Example Source"},
                 }
             ]
         }
+        monkeypatch.setattr(
+            "src.delivery.news_api_fetcher.httpx.AsyncClient",
+            lambda *args, **kwargs: DummyAsyncClient(DummyResponse(response_data)),
+        )
 
-        fetcher = NewsAPIFetcher(api_key="test_key")
-        result = fetcher.fetch_recent_news("tech", ["ai"], 5)
+        fetcher = NewsApiFetcher(api_key="test_key")
+        result = await fetcher.fetch_recent_news("python", ["async"], 5)
 
-        self.assertEqual(len(result), 1)
-        self.assertIsInstance(result[0], NewsArticle)
-        self.assertEqual(result[0].title, "Test Article 1")
+        assert len(result) == 1
+        assert isinstance(result[0], NewsArticle)
+        assert result[0].title == "Test Article"
+        assert result[0].source == "Example Source"
 
-    @patch("src.services.newsapi_fetcher.NewsApiClient")
-    def test_fetch_recent_news_api_error(self, mock_client_class: MagicMock) -> None:
-        """Test graceful handling of API errors."""
-        mock_client = MagicMock()
-        mock_client_class.return_value = mock_client
-        mock_client.get_everything.side_effect = Exception("API Error")
+    @pytest.mark.asyncio
+    async def test_fetch_recent_news_returns_empty_without_api_key(self) -> None:
+        fetcher = NewsApiFetcher(api_key="")
 
-        fetcher = NewsAPIFetcher(api_key="test_key")
-        result = fetcher.fetch_recent_news("tech", ["ai"], 5)
+        result = await fetcher.fetch_recent_news("python", ["async"], 5)
 
-        self.assertEqual(result, [])
+        assert result == []
 
-    @patch("src.services.newsapi_fetcher.NewsApiClient")
-    def test_fetch_recent_news_empty_response(
-        self, mock_client_class: MagicMock
-    ) -> None:
-        """Test handling of empty API response."""
-        mock_client = MagicMock()
-        mock_client_class.return_value = mock_client
-        mock_client.get_everything.return_value = {"articles": []}
+    @pytest.mark.asyncio
+    async def test_fetch_recent_news_handles_http_exceptions(self, monkeypatch) -> None:
+        """Ensure HTTP client errors are caught and return an empty list."""
+        monkeypatch.setattr(
+            "src.delivery.news_api_fetcher.httpx.AsyncClient",
+            lambda *args, **kwargs: ErrorAsyncClient(),
+        )
 
-        fetcher = NewsAPIFetcher(api_key="test_key")
-        result = fetcher.fetch_recent_news("nonexistent", ["topic"], 5)
+        fetcher = NewsApiFetcher(api_key="test_key")
+        result = await fetcher.fetch_recent_news("python", [], 5)
 
-        self.assertEqual(result, [])
+        assert result == []
 
-    @patch("src.services.newsapi_fetcher.NewsApiClient")
-    def test_build_query_with_keywords(self, mock_client_class: MagicMock) -> None:
-        """Test query building with keywords."""
-        fetcher = NewsAPIFetcher(api_key="test_key")
-        query = fetcher._build_query("python", ["async", "frameworks"])
+    @pytest.mark.asyncio
+    async def test_fetch_recent_news_handles_invalid_json(self, monkeypatch) -> None:
+        """Invalid JSON from the response should result in [] rather than raising."""
+        monkeypatch.setattr(
+            "src.delivery.news_api_fetcher.httpx.AsyncClient",
+            lambda *args, **kwargs: DummyAsyncClient(InvalidJsonResponse()),
+        )
 
-        self.assertEqual(query, "python async frameworks")
+        fetcher = NewsApiFetcher(api_key="test_key")
+        result = await fetcher.fetch_recent_news("python", ["async"], 5)
 
-    @patch("src.services.newsapi_fetcher.NewsApiClient")
-    def test_build_query_without_keywords(
-        self, mock_client_class: MagicMock
-    ) -> None:
-        """Test query building without keywords."""
-        fetcher = NewsAPIFetcher(api_key="test_key")
-        query = fetcher._build_query("python", [])
+        assert result == []
 
-        self.assertEqual(query, "python")
+    def test_build_params(self) -> None:
+        fetcher = NewsApiFetcher(api_key="test_key")
 
-    @patch("src.services.newsapi_fetcher.NewsApiClient")
-    def test_parse_articles_missing_fields(
-        self, mock_client_class: MagicMock
-    ) -> None:
-        """Test parsing articles with missing optional fields."""
-        fetcher = NewsAPIFetcher(api_key="test_key")
-        response = {
-            "articles": [
-                {
-                    "title": "Minimal Article",
-                    "url": "https://example.com",
-                    "source": {},
-                }
-            ]
-        }
+        params = fetcher._build_params("python", ["async", "pytest"], 3)
 
-        result = fetcher._parse_articles(response)
+        assert params["q"] == "python async pytest"
+        assert params["pageSize"] == 3
+        assert params["apiKey"] == "test_key"
+        assert params["language"] == "en"
 
-        self.assertEqual(len(result), 1)
-        self.assertEqual(result[0].title, "Minimal Article")
-        self.assertEqual(result[0].source, "Unknown")
+    def test_build_params(self) -> None:
+        """Build parameters correctly when keywords are provided."""
+        fetcher = NewsApiFetcher(api_key="test_key")
 
+        params = fetcher._build_params("python", ["async", "pytest"], 3)
 
-if __name__ == "__main__":
-    unittest.main()
+        assert params["q"] == "python async pytest"
+        assert params["pageSize"] == 3
+        assert params["apiKey"] == "test_key"
+        assert params["language"] == "en"
+
+    def test_build_params_without_keywords(self) -> None:
+        """Build parameters correctly when the keyword list is empty."""
+        fetcher = NewsApiFetcher(api_key="test_key")
+
+        params = fetcher._build_params("python", [], 3)
+
+        assert params["q"] == "python"
+        assert params["pageSize"] == 3
+        assert params["apiKey"] == "test_key"
+        assert params["language"] == "en"
+
+    def test_parse_articles_handles_missing_source_name(self) -> None:
+        """Parse articles gracefully when the API source object lacks a name."""
+        fetcher = NewsApiFetcher(api_key="test_key")
+
+        result = fetcher._parse_articles(
+            {
+                "articles": [
+                    {
+                        "title": "Minimal Article",
+                        "url": "https://example.com",
+                        "description": "Desc",
+                        "source": {},
+                    }
+                ]
+            }
+        )
+
+        assert len(result) == 1
+        assert result[0].title == "Minimal Article"
+        assert result[0].source == "Unknown"
+
+    def test_parse_articles_returns_empty_for_missing_articles(self) -> None:
+        """Return an empty list when the API response contains no articles field."""
+        fetcher = NewsApiFetcher(api_key="test_key")
+
+        result = fetcher._parse_articles({"status": "ok"})
+
+        assert result == []

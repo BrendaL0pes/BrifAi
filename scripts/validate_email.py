@@ -5,32 +5,29 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.services.email_sender import SMTPEmailSender
+from src.delivery.smtp_email_service import SmtpEmailService
 
 
 def main() -> None:
-    """Validate email sender with real SMTP connection."""
+    """Validate the current SMTP delivery implementation with real SMTP."""
     load_dotenv()
 
-    smtp_server = os.getenv("SMTP_SERVER")
+    smtp_host = os.getenv("SMTP_HOST")
     smtp_port = os.getenv("SMTP_PORT")
     smtp_user = os.getenv("SMTP_USER")
     smtp_password = os.getenv("SMTP_PASSWORD")
-    sender_email = os.getenv("SENDER_EMAIL")
 
-    if not all([smtp_server, smtp_port, smtp_user, smtp_password, sender_email]):
+    if not all([smtp_host, smtp_port, smtp_user, smtp_password]):
         print("❌ ERROR: Missing SMTP configuration in .env")
-        print("Please set: SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SENDER_EMAIL")
+        print("Please set: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD")
         sys.exit(1)
 
-    print("🔄 Initializing SMTPEmailSender...")
-    sender = SMTPEmailSender(
-        smtp_server=smtp_server,
-        smtp_port=int(smtp_port),
-        username=smtp_user,
-        password=smtp_password,
-        sender_email=sender_email,
-    )
+    print("🔄 Initializing SmtpEmailService...")
+    service = SmtpEmailService()
+    service._host = smtp_host
+    service._port = int(smtp_port)
+    service._user = smtp_user
+    service._password = smtp_password
 
     recipient = input("📧 Enter recipient email address: ").strip()
     if not recipient:
@@ -59,13 +56,13 @@ Summary of the second story highlighting key developments in the area.
 """
 
     print(f"📡 Sending test briefing to {recipient}...")
-    result = sender.send_briefing(recipient, briefing_content)
+    result = service.send_briefing(recipient, briefing_content)
 
     if result:
         print("✅ Email sent successfully!")
-        print(f"   From: {sender_email}")
+        print(f"   From: {smtp_user}")
         print(f"   To: {recipient}")
-        print(f"   Subject: Your BrifAI Daily Briefing")
+        print(f"   Subject: Your Daily Briefing")
     else:
         print("❌ Failed to send email (check logs and SMTP configuration)")
         print("\nTroubleshooting:")

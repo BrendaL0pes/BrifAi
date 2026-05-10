@@ -6,7 +6,7 @@ class IDiscordNotifier(ABC):
     """Abstract base class for sending messages to Discord channels."""
 
     @abstractmethod
-    def send_message(self, channel_id: str, markdown_content: str) -> bool:
+    async def send_message(self, channel_id: str, markdown_content: str) -> bool:
         """
         Sends a message to a specific Discord channel.
 

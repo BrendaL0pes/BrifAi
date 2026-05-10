@@ -1,31 +1,54 @@
-from typing import List
+import asyncio
 
+from agno.agent import Agent
+from agno.models.groq import Groq
+
+from src.core.models import Briefing, UserPreferences
 from src.interfaces.news_fetcher import INewsFetcher
-from src.core.models import NewsArticle
+
+SYSTEM_PROMPT = """
+You are a professional news briefing assistant.
+For each topic provided, use the fetch_news tool to retrieve articles.
+Summarize each article in 2-3 sentences.
+Format the output in Markdown with one ## section per topic.
+Respect the max_news_per_topic limit.
+Output ONLY the Markdown briefing — no extra commentary.
+"""
 
 
 class BriefingAgent:
-    def __init__(self, fetcher: INewsFetcher):
-        self.fetcher = fetcher
+    """Generates briefing content using an AI agent and news tools."""
 
-    def create_briefing(
-        self,
-        topic: str = "general",
-        keywords: list[str] | None = None,
-        max_results: int = 5,
+    def __init__(self, fetcher: INewsFetcher, model_id: str = "llama-3.1-8b-instant") -> None:
+        self._fetcher = fetcher
+        self._agent = Agent(
+            name="BriefingAgent",
+            model=Groq(id=model_id),
+            instructions=SYSTEM_PROMPT,
+            tools=[self._fetch_news],
+        )
+        self._use_arun = hasattr(self._agent, "arun")
+
+    async def _fetch_news(
+        self, topic: str, keywords: list[str], max_results: int
     ) -> str:
-        keywords = keywords or []
-        articles: List[NewsArticle] = self.fetcher.fetch_recent_news(
-            topic=topic, keywords=keywords, max_results=max_results
+        articles = await self._fetcher.fetch_recent_news(topic, keywords, max_results)
+        return "\n".join(
+            f"- {article.title}: {article.summary}" for article in articles
         )
 
-        if not articles:
-            return "No news articles available at this time."
+    async def generate_briefing(self, preferences: UserPreferences) -> Briefing:
+        prompt = (
+            f"Generate a briefing for topics: {preferences.topics}. "
+            f"Max {preferences.max_news_per_topic} articles per topic."
+        )
+        if self._use_arun:
+            response = await self._agent.arun(prompt)
+        else:
+            response = await asyncio.to_thread(self._agent.run, prompt)
 
-        lines = []
-        for index, article in enumerate(articles, start=1):
-            lines.append(
-                f"**{index}. {article.title}**\n{article.summary}\n{article.url}\nSource: {article.source}"
-            )
-
-        return "\n\n".join(lines)
+        return Briefing(
+            user_email=preferences.email_address,
+            discord_channel_id=preferences.discord_channel_id,
+            content_markdown=response.content,
+        )
