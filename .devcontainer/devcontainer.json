@@ -1,43 +1,34 @@
 {
-  "name": "Briefy Dev Environment",
+  "name": "BrifAi Dev Environment",
   "build": {
     "dockerfile": "Dockerfile"
   },
-
-  // Extensões VS Code instaladas automaticamente no container
   "customizations": {
     "vscode": {
       "extensions": [
-        "ms-python.python",          // suporte Python
-        "ms-python.vscode-pylance",  // intellisense e type checking
-        "charliermarsh.ruff",        // linter/formatter (substitui black + flake8)
-        "ms-python.debugpy",         // debugger
-        "usernamehw.errorlens",      // mostra erros inline no editor
-        "tamasfe.even-better-toml",  // syntax highlight do pyproject.toml
-        "mhutchie.git-graph"         // visualização de branches/commits
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "ms-python.debugpy",
+        "usernamehw.errorlens",
+        "tamasfe.even-better-toml",
+        "mhutchie.git-graph"
       ],
       "settings": {
-        // aponta pro .venv criado pelo uv sync
-        "python.defaultInterpreterPath": "/workspaces/brifai/.venv/bin/python",
-
-        // formata e organiza imports ao salvar
+        // CORREÇÃO: O caminho deve ser o da pasta do seu projeto (grupo-14)
+        "python.defaultInterpreterPath": "/workspaces/grupo-14/.venv/bin/python",
         "editor.formatOnSave": true,
         "[python]": {
           "editor.defaultFormatter": "charliermarsh.ruff",
           "editor.formatOnSave": true
         },
         "ruff.organizeImports": true,
-
-        // mostra type hints inline (opcional, mas ajuda muito)
         "python.analysis.inlayHints.functionReturnTypes": true,
         "python.analysis.inlayHints.variableTypes": true
       }
     }
   },
-
-  // Roda após o container ser criado: instala dependências via uv
-  "postCreateCommand": "uv sync",
-
-  // Usuário padrão do container (não root)
+  // CORREÇÃO: Primeiro instala o uv, depois sincroniza
+  "postCreateCommand": "curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=\"$HOME/.local/bin:$PATH\" && uv sync",
   "remoteUser": "vscode"
 }
