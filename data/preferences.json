@@ -1,13 +1,14 @@
 {
-    "1502920131876094035": {
-        "discord_channel_id": "1502920131876094035",
+    "1502920131876094032": {
+        "discord_channel_id": "1502920131876094032",
         "email_address": "brendamedeiroslopes1@gmail.com",
         "topics": [
             "tecnologia",
-            "inteligência artificial"
+            "jogos"
         ],
         "keywords": [
-            "brendamedeiroslopes1@gmail.com"
+            "IA",
+            "Big Tech"
         ],
         "max_news_per_topic": 5
     }

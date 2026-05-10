@@ -8,20 +8,16 @@ dependencies = [
     "agno>=2.6.1",
     "groq>=1.2.0",
     "python-dotenv>=1.2.2",
-    "discord.py>=2.3",       # M2 — bot conversacional
-    "httpx>=0.27",           # M4 — fetcher async (nunca usar requests)
-    "apscheduler>=3.10",     # M4 — scheduler
+    "discord.py>=2.3",
+    "httpx>=0.27",
+    "apscheduler>=3.10",
 ]
- 
+
 [dependency-groups]
-dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.23",  # obrigatório para testar funções async
-    "ruff>=0.4",
-]
- 
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.4"]
+
 [tool.pytest.ini_options]
-asyncio_mode = "auto"        # todos os testes async rodam sem @pytest.mark.asyncio
+asyncio_mode = "auto"
 addopts = "-p no:cacheprovider"
 testpaths = ["tests"]
 norecursedirs = ["pytest-cache-files-*", ".pytest_cache", ".venv"]
@@ -29,10 +25,3 @@ norecursedirs = ["pytest-cache-files-*", ".pytest_cache", ".venv"]
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-package-dir = {"" = "src"}
-
-[tool.setuptools.packages.find]
-where = ["src"]
-

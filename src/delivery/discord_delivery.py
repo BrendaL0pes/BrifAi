@@ -1,27 +1,37 @@
-import asyncio
-from typing import Optional
-
+"""Discord delivery service for sending briefings to channels."""
 import discord
+
 from src.interfaces.discord_notifier import IDiscordNotifier
+
+DISCORD_MAX_LENGTH = 2000
 
 
 class DiscordDeliveryService(IDiscordNotifier):
-    def __init__(self, client: discord.Client, default_channel_id: Optional[str] = None):
-        self.client = client
-        self.default_channel_id = default_channel_id
+    """Delivers briefings to Discord channels using an injected client."""
 
-    def send_message(self, channel_id: str, markdown_content: str) -> bool:
-        channel_id = channel_id or self.default_channel_id
-        if not channel_id:
-            return False
+    def __init__(self, client: discord.Client) -> None:
+        """Initializes the service with a shared Discord client."""
+        self._client = client
 
-        channel = self.client.get_channel(int(channel_id))
-        if channel is None:
-            return False
+    async def send_message(
+        self, channel_id: str, markdown_content: str
+    ) -> bool:
+        """Fetches the channel and sends the briefing in chunks."""
+        channel = await self._client.fetch_channel(int(channel_id))
+        for chunk in self._split_content(markdown_content):
+            await channel.send(chunk)
+        return True
 
-        loop = getattr(self.client, "loop", None)
-        if loop and loop.is_running():
-            asyncio.create_task(channel.send(markdown_content))
-            return True
-
-        return False
+    def _split_content(
+        self, content: str, limit: int = DISCORD_MAX_LENGTH - 100
+    ) -> list[str]:
+        """Splits content into Discord-safe chunks at line boundaries."""
+        chunks, current = [], ""
+        for line in content.splitlines(keepends=True):
+            if len(current) + len(line) > limit:
+                chunks.append(current)
+                current = ""
+            current += line
+        if current:
+            chunks.append(current)
+        return chunks

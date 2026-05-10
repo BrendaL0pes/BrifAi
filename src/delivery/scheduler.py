@@ -40,6 +40,10 @@ class BriefingScheduler:
 
         for notifier in self._discord:
             try:
-                await notifier.send_message(briefing.discord_channel_id, briefing.content_markdown)
+                await notifier.send_message(
+                    briefing.discord_channel_id, briefing.content_markdown
+                )
             except Exception as exception:
-                logger.error("Discord failed for %s: %s", briefing.discord_channel_id, exception)
+                logger.error(
+                    "Discord failed for %s: %s", briefing.discord_channel_id, exception
+                )
