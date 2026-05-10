@@ -22,6 +22,9 @@ dev = [
  
 [tool.pytest.ini_options]
 asyncio_mode = "auto"        # todos os testes async rodam sem @pytest.mark.asyncio
+addopts = "-p no:cacheprovider"
+testpaths = ["tests"]
+norecursedirs = ["pytest-cache-files-*", ".pytest_cache", ".venv"]
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
