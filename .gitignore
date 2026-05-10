@@ -132,8 +132,7 @@ dmypy.json
 # VS Code
 .vscode/
 
-# Dev Containers
-.devcontainer/
+
 
 # uv
 uv.lock
