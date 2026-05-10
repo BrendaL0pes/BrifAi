@@ -10,5 +10,18 @@
             "brendamedeiroslopes1@gmail.com"
         ],
         "max_news_per_topic": 5
+    },
+    "1503102880884854906": {
+        "discord_channel_id": "1503102880884854906",
+        "email_address": "testetrabalhopratico1@gmail.com",
+        "topics": [
+            "war",
+            "politics",
+            "trump"
+        ],
+        "keywords": [
+            "epstein"
+        ],
+        "max_news_per_topic": 5
     }
 }

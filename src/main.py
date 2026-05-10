@@ -18,7 +18,6 @@ load_dotenv()
 def build_agent(fetcher: NewsApiFetcher) -> BriefingAgent:
     return BriefingAgent(
         fetcher=fetcher,
-        model_api_key=os.getenv("GROQ_API_KEY"),
         model_id=os.getenv("GROQ_MODEL_ID", "llama-3.3-70b-versatile"),
     )
 
@@ -37,13 +36,14 @@ scheduler = BriefingScheduler(storage, agent, [email_svc], [discord_svc])
 apscheduler = AsyncIOScheduler()
 apscheduler.add_job(scheduler.run_daily_job, "cron", hour=7)
 
-bot_manager = DiscordBotManager(client=client, storage=storage)
+bot_manager = DiscordBotManager(client=client, storage=storage, scheduler=scheduler)
 bot_manager.register_events()
 
 
 @client.event
 async def on_ready():
-    apscheduler.start()
+    if not apscheduler.running:
+        apscheduler.start()
     print(f"Bot online: {client.user}")
 
 

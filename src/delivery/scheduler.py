@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import List
 
@@ -24,12 +25,18 @@ class BriefingScheduler:
         self._agent = agent
         self._emails = email_senders
         self._discord = discord_notifiers
+        self._run_lock = asyncio.Lock()
 
     async def run_daily_job(self) -> None:
         """Generates and delivers briefings for all registered users."""
-        for user in self._storage.get_all_users():
-            briefing = await self._agent.generate_briefing(user)
-            await self._deliver(briefing)
+        if self._run_lock.locked():
+            logger.warning("Briefing job skipped because another run is already in progress.")
+            return
+
+        async with self._run_lock:
+            for user in self._storage.get_all_users():
+                briefing = await self._agent.generate_briefing(user)
+                await self._deliver(briefing)
 
     async def _deliver(self, briefing: Briefing) -> None:
         for sender in self._emails:
