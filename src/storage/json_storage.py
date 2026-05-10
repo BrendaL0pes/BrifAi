@@ -10,26 +10,26 @@ from src.interfaces.preferences_storage import IPreferencesStorage
 class JsonPreferencesStorage(IPreferencesStorage):
     """Stores user preferences in a local JSON file."""
 
-    def __init__(self, file_path: str = "data/preferences.json"):
+    def __init__(self, file_path: str = "data/preferences.json") -> None:
         """Initializes the storage and ensures the file exists."""
-        self.file_path = Path(file_path)
+        self._file_path = Path(file_path)
         self._ensure_file_exists()
 
     def _ensure_file_exists(self) -> None:
         """Creates the directory and file if they do not exist."""
-        if not self.file_path.exists():
-            self.file_path.parent.mkdir(parents=True, exist_ok=True)
-            self.file_path.write_text("{}", encoding="utf-8")
+        if not self._file_path.exists():
+            self._file_path.parent.mkdir(parents=True, exist_ok=True)
+            self._file_path.write_text("{}", encoding="utf-8")
 
     def _read_data(self) -> Dict[str, dict]:
         """Reads the raw dictionary from the JSON file."""
-        content = self.file_path.read_text(encoding="utf-8")
+        content = self._file_path.read_text(encoding="utf-8")
         return json.loads(content) if content else {}
 
     def _write_data(self, data: Dict[str, dict]) -> None:
         """Writes the dictionary back to the JSON file."""
         content = json.dumps(data, indent=4, ensure_ascii=False)
-        self.file_path.write_text(content, encoding="utf-8")
+        self._file_path.write_text(content, encoding="utf-8")
 
     def save_user(self, preferences: UserPreferences) -> bool:
         """Saves a user's preferences to the storage."""

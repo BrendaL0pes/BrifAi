@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import discord
@@ -13,22 +13,27 @@ from src.interfaces.preferences_storage import IPreferencesStorage
 class ConversationState:
     step: int = 0
     partial: dict[str, Any] = field(default_factory=dict)
-    started_at: datetime = field(default_factory=datetime.utcnow)
+    started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def is_timed_out(self, timeout_seconds: int = 120) -> bool:
-        return datetime.utcnow() - self.started_at > timedelta(seconds=timeout_seconds)
+        return datetime.now(timezone.utc) - self.started_at > timedelta(seconds=timeout_seconds)
 
 
 class DiscordBotManager:
+    """Manages Discord bot interactions for user preference registration."""
+
     def __init__(self, client: discord.Client, storage: IPreferencesStorage) -> None:
+        """Initialize the bot manager with Discord client and storage."""
         self._client = client
-        self.storage = storage
+        self._storage = storage
         self._conversations: dict[int, ConversationState] = {}
 
     def register_events(self) -> None:
+        """Register event handlers for the Discord client."""
         self._client.on_message = self._on_message
 
     async def _on_message(self, message: discord.Message) -> None:
+        """Handle incoming Discord messages and manage registration flow."""
         if message.author.bot:
             return
 
@@ -49,10 +54,14 @@ class DiscordBotManager:
             await self._process_step(message, state)
 
     async def _start_registration(self, message: discord.Message) -> None:
+        """Start the user registration process."""
         self._conversations[message.author.id] = ConversationState()
         await self._ask_topics(message.channel)
 
-    async def _process_step(self, message: discord.Message, state: ConversationState) -> None:
+    async def _process_step(
+        self, message: discord.Message, state: ConversationState
+    ) -> None:
+        """Process the current step in the registration flow."""
         content = message.content.strip()
 
         if state.step == 0:
@@ -70,21 +79,23 @@ class DiscordBotManager:
             )
 
     async def _ask_topics(self, channel: discord.abc.Messageable) -> None:
+        """Ask the user for news topics."""
         await channel.send(
             "Quais tópicos de notícias você deseja receber? Separe-os por vírgula."
         )
 
     async def _ask_keywords(self, channel: discord.abc.Messageable) -> None:
+        """Ask the user for keywords."""
         await channel.send(
             "Quais palavras-chave você deseja incluir? Separe-as por vírgula ou responda `nenhuma`."
         )
 
     async def _ask_email(self, channel: discord.abc.Messageable) -> None:
-        await channel.send(
-            "Qual é o seu e-mail para receber briefings por e-mail?"
-        )
+        """Ask the user for their email address."""
+        await channel.send("Qual é o seu e-mail para receber briefings por e-mail?")
 
     async def _ask_channel(self, channel: discord.abc.Messageable) -> None:
+        """Ask the user for the Discord channel."""
         await channel.send(
             "Por favor informe o canal Discord que deve receber as notificações. "
             "Responda com o ID do canal, mencione o canal ou envie `este canal` para usar este mesmo canal."
@@ -96,6 +107,7 @@ class DiscordBotManager:
         state: ConversationState,
         content: str,
     ) -> None:
+        """Handle the topics input step."""
         topics = [topic.strip() for topic in content.split(",") if topic.strip()]
         if not topics:
             await message.channel.send(
@@ -114,10 +126,13 @@ class DiscordBotManager:
         state: ConversationState,
         content: str,
     ) -> None:
+        """Handle the keywords input step."""
         if content.lower() in {"nenhuma", "não", "nao", "sem"}:
             keywords: list[str] = []
         else:
-            keywords = [keyword.strip() for keyword in content.split(",") if keyword.strip()]
+            keywords = [
+                keyword.strip() for keyword in content.split(",") if keyword.strip()
+            ]
         state.partial["keywords"] = keywords
         state.step = 2
         await self._ask_email(message.channel)
@@ -128,6 +143,7 @@ class DiscordBotManager:
         state: ConversationState,
         content: str,
     ) -> None:
+        """Handle the email input step."""
         if not self._is_valid_email(content):
             await message.channel.send(
                 "E-mail inválido. Por favor envie um endereço de e-mail válido."
@@ -145,6 +161,7 @@ class DiscordBotManager:
         state: ConversationState,
         content: str,
     ) -> None:
+        """Handle the channel input step."""
         channel_id = self._parse_channel_id(content, message.channel.id)
         if channel_id is None:
             await message.channel.send(
@@ -161,8 +178,9 @@ class DiscordBotManager:
         message: discord.Message,
         state: ConversationState,
     ) -> None:
+        """Complete the registration and save user preferences."""
         preferences = UserPreferences(**state.partial)
-        saved = self.storage.save_user(preferences)
+        saved = self._storage.save_user(preferences)
         del self._conversations[message.author.id]
 
         if saved:
@@ -176,12 +194,12 @@ class DiscordBotManager:
 
     @staticmethod
     def _is_valid_email(value: str) -> bool:
-        return bool(
-            re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", value)
-        )
+        """Validate email format."""
+        return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", value))
 
     @staticmethod
     def _parse_channel_id(value: str, current_channel_id: int) -> Optional[int]:
+        """Parse channel ID from user input."""
         cleaned = value.strip()
         if cleaned.lower() in {"este canal", "aqui", "mesmo canal", "canal atual"}:
             return current_channel_id
