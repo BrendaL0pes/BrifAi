@@ -137,4 +137,4 @@ dmypy.json
 # uv
 uv.lock
 
-data/*.json
+data/*.jsondata/*.json
