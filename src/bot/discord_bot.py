@@ -29,6 +29,8 @@ class ConversationState:
 class DiscordBotManager:
     """Manages Discord bot interactions for user preference registration."""
 
+    MAX_NEWS_PER_TOPIC = 5
+
     def __init__(
         self,
         client: discord.Client,
@@ -44,6 +46,35 @@ class DiscordBotManager:
     def register_events(self) -> None:
         """Register event handlers on the injected Discord client."""
         self._client.on_message = self._on_message
+        self._client.on_member_join = self._on_member_join
+
+    async def _on_member_join(self, member: discord.Member) -> None:
+        """Sends a welcome DM with available commands to new members."""
+        try:
+            await member.send(self._build_welcome_message(member.name))
+        except discord.Forbidden:
+            channel = discord.utils.get(member.guild.text_channels, name="geral")
+            if channel:
+                await channel.send(
+                    f"👋 Bem-vindo, {member.mention}!\n\n"
+                    + self._build_welcome_message(member.name)
+                )
+
+    def _build_welcome_message(self, name: str) -> str:
+        """Builds the welcome message with command instructions."""
+        return (
+            f"👋 Olá, **{name}**! Bem-vindo ao **BrifAI**!\n\n"
+            "📰 Receba briefings diários personalizados direto no Discord e no e-mail.\n\n"
+            "**Comandos disponíveis:**\n"
+            "▸ `!register` — Cadastre seus tópicos e preferências\n"
+            "▸ `!update`   — Atualize suas preferências cadastradas\n"
+            "▸ `!test`     — Receba um briefing agora para testar\n\n"
+            "**Como funciona:**\n"
+            "1. Envie `!register` para configurar seus tópicos de interesse\n"
+            "2. O briefing será entregue automaticamente todo dia às **7h**\n"
+            "3. Use `!update` a qualquer momento para mudar suas preferências\n\n"
+            "Para começar agora, envie `!register` em qualquer canal. 🚀"
+        )
 
     async def _on_message(self, message: discord.Message) -> None:
         """Handle incoming Discord messages and route to the correct flow."""
@@ -54,6 +85,10 @@ class DiscordBotManager:
         content = message.content.strip().lower()
 
         if content.startswith("!register"):
+            await self._start_registration(message)
+            return
+
+        if content.startswith("!update"):
             await self._start_registration(message)
             return
 
@@ -81,7 +116,7 @@ class DiscordBotManager:
             await message.channel.send(f"Erro ao gerar briefing: {e}")
 
     async def _start_registration(self, message: discord.Message) -> None:
-        """Start the user registration process."""
+        """Start or restart the user registration process."""
         self._conversations[message.author.id] = ConversationState()
         await self._ask_topics(message.channel)
 
@@ -108,23 +143,28 @@ class DiscordBotManager:
     async def _ask_topics(self, channel: discord.abc.Messageable) -> None:
         """Ask the user for news topics."""
         await channel.send(
-            "Quais tópicos de notícias você deseja receber? Separe-os por vírgula."
+            "Quais tópicos de notícias você deseja receber? Separe-os por vírgula.\n"
+            "_Exemplos: tecnologia, inteligência artificial, esportes, ciência_"
         )
 
     async def _ask_keywords(self, channel: discord.abc.Messageable) -> None:
         """Ask the user for priority keywords."""
         await channel.send(
-            "Quais palavras-chave você deseja incluir? Separe-as por vírgula ou responda `nenhuma`."
+            "Quais palavras-chave você deseja incluir? Separe-as por vírgula ou responda `nenhuma`.\n"
+            "_Exemplos: python, sustentabilidade, startups_"
         )
 
     async def _ask_email(self, channel: discord.abc.Messageable) -> None:
         """Ask the user for their email address."""
-        await channel.send("Qual é o seu e-mail para receber briefings por e-mail?")
+        await channel.send(
+            "Qual é o seu e-mail para receber o briefing por e-mail?\n"
+            "_O briefing será enviado para este endereço todo dia às 7h._"
+        )
 
     async def _ask_channel(self, channel: discord.abc.Messageable) -> None:
         """Ask the user for the target Discord channel."""
         await channel.send(
-            "Por favor informe o canal Discord que deve receber as notificações. "
+            "Em qual canal do Discord você deseja receber os briefings?\n"
             "Responda com o ID do canal, mencione o canal ou envie `este canal` para usar este mesmo canal."
         )
 
@@ -135,7 +175,7 @@ class DiscordBotManager:
         topics = [t.strip() for t in content.split(",") if t.strip()]
         if not topics:
             await message.channel.send(
-                "Entrada inválida. Informe pelo menos um tópico. Separe-os por vírgula."
+                "Entrada inválida. Informe pelo menos um tópico separado por vírgula."
             )
             await self._ask_topics(message.channel)
             return
@@ -181,6 +221,7 @@ class DiscordBotManager:
             await self._ask_channel(message.channel)
             return
         state.partial["discord_channel_id"] = str(channel_id)
+        state.partial["max_news_per_topic"] = self.MAX_NEWS_PER_TOPIC
         await self._complete_registration(message, state)
 
     async def _complete_registration(
@@ -193,11 +234,13 @@ class DiscordBotManager:
 
         if saved:
             await message.channel.send(
-                "Registro concluído! Suas preferências foram salvas com sucesso."
+                "✅ Registro concluído! Suas preferências foram salvas com sucesso.\n"
+                "📬 Você receberá seu briefing diariamente às **7h**.\n"
+                "Use `!update` para alterar suas preferências a qualquer momento. 🚀"
             )
         else:
             await message.channel.send(
-                "Não foi possível salvar suas preferências. Tente novamente mais tarde."
+                "❌ Não foi possível salvar suas preferências. Tente novamente mais tarde."
             )
 
     @staticmethod

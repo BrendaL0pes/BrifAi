@@ -1,4 +1,5 @@
 """Discord delivery service for sending briefings to channels."""
+
 import discord
 
 from src.interfaces.discord_notifier import IDiscordNotifier
@@ -13,13 +14,11 @@ class DiscordDeliveryService(IDiscordNotifier):
         """Initializes the service with a shared Discord client."""
         self._client = client
 
-    async def send_message(
-        self, channel_id: str, markdown_content: str
-    ) -> bool:
+    async def send_message(self, channel_id: str, markdown_content: str) -> bool:
         """Fetches the channel and sends the briefing in chunks."""
         channel = await self._client.fetch_channel(int(channel_id))
         for chunk in self._split_content(markdown_content):
-            await channel.send(chunk)
+            await channel.send(chunk, suppress_embeds=True)
         return True
 
     def _split_content(

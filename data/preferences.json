@@ -1,0 +1,27 @@
+{
+    "1502920131876094035": {
+        "discord_channel_id": "1502920131876094035",
+        "email_address": "brendamedeiroslopes1@gmail.com",
+        "topics": [
+            "tecnologia",
+            "games",
+            "ciência"
+        ],
+        "keywords": [
+            "biologia",
+            "sustentável"
+        ],
+        "max_news_per_topic": 5
+    },
+    "1503102880884854906": {
+        "discord_channel_id": "1503102880884854906",
+        "email_address": "testetrabalhopratico1@gmail.com",
+        "topics": [
+            "esportes"
+        ],
+        "keywords": [
+            "boliche"
+        ],
+        "max_news_per_topic": 5
+    }
+}

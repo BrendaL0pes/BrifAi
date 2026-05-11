@@ -1,4 +1,5 @@
 """NewsAPI fetcher implementation."""
+
 import httpx
 
 from src.core.models import NewsArticle
@@ -23,15 +24,14 @@ class NewsApiFetcher(INewsFetcher):
             response = await client.get(BASE_URL, params=params)
         return self._parse_articles(response.json())
 
-    def _build_params(
-        self, topic: str, keywords: list[str], max_results: int
-    ) -> dict:
+    def _build_params(self, topic: str, keywords: list[str], max_results: int) -> dict:
         """Builds the query parameters for the NewsAPI request."""
         query = " ".join([topic] + keywords)
         return {
             "q": query,
             "pageSize": max_results,
             "sortBy": "publishedAt",
+            "language": "pt",
             "apiKey": self._api_key,
         }
 
