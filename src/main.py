@@ -47,4 +47,5 @@ async def on_ready():
     print(f"Bot online: {client.user}")
 
 
-client.run(os.getenv("DISCORD_BOT_TOKEN"))
+if __name__ == "__main__":
+    client.run(os.getenv("DISCORD_BOT_TOKEN"))
